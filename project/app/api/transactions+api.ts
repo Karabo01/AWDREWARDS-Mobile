@@ -49,10 +49,18 @@ export async function GET(request: Request) {
       points: typeof tx.points === 'object' ? Number(tx.points.$numberInt) : tx.points,
       balance: typeof tx.balance === 'object' ? Number(tx.balance.$numberInt) : tx.balance,
       createdAt: tx.createdAt && tx.createdAt.$date
-        ? new Date(Number(tx.createdAt.$date.$numberLong || tx.createdAt.$date)).toISOString()
+        ? new Date(
+            typeof tx.createdAt.$date === 'object' && tx.createdAt.$date.$numberLong
+              ? Number(tx.createdAt.$date.$numberLong)
+              : Number(tx.createdAt.$date)
+          ).toISOString()
         : (typeof tx.createdAt === 'string' ? tx.createdAt : ''),
       updatedAt: tx.updatedAt && tx.updatedAt.$date
-        ? new Date(Number(tx.updatedAt.$date.$numberLong || tx.updatedAt.$date)).toISOString()
+        ? new Date(
+            typeof tx.updatedAt.$date === 'object' && tx.updatedAt.$date.$numberLong
+              ? Number(tx.updatedAt.$date.$numberLong)
+              : Number(tx.updatedAt.$date)
+          ).toISOString()
         : (typeof tx.updatedAt === 'string' ? tx.updatedAt : ''),
       rewardId: tx.rewardId ? (typeof tx.rewardId === 'object' && tx.rewardId.$oid ? tx.rewardId.$oid : tx.rewardId) : undefined,
     }));

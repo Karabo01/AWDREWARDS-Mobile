@@ -6,13 +6,19 @@ import {
   TouchableOpacity, 
   StyleSheet, 
   Alert,
-  ActivityIndicator 
+  ActivityIndicator,
+  Platform 
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Lock } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { storage } from '@/utils/storage';
+
+// Add API_BASE_URL
+const API_BASE_URL = Platform.OS === 'web'
+  ? ''
+  : 'http://192.168.0.138:8081';
 
 export default function ChangePasswordScreen() {
   const [newPassword, setNewPassword] = useState('');
@@ -44,7 +50,7 @@ export default function ChangePasswordScreen() {
     try {
       const token = await storage.getItem('authToken');
       
-      const response = await fetch('/auth/change-password', {
+      const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

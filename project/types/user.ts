@@ -1,9 +1,12 @@
 export interface User {
-  _id: string;
+  id: string;
+  email: string;
   tenantId: string;
   phone: string;
   points: number;
   status: string;
+  passwordChanged?: boolean;
+  name?: string; // <-- Add this line
 }
 
 export interface Transaction {

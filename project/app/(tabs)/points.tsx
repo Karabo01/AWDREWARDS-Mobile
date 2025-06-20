@@ -5,7 +5,8 @@ import {
   ScrollView, 
   StyleSheet, 
   RefreshControl,
-  TouchableOpacity 
+  TouchableOpacity,
+  Platform 
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,22 +14,29 @@ import { Transaction } from '@/types/user';
 import { TrendingUp, TrendingDown, Filter } from 'lucide-react-native';
 import { storage } from '@/utils/storage';
 
+// Add API_BASE_URL
+const API_BASE_URL = Platform.OS === 'web'
+  ? ''
+  : 'http://192.168.0.138:8081';
+
 export default function PointsScreen() {
   const { user, refreshUser } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'earned' | 'redeemed'>('all');
+  const [tenantsMap, setTenantsMap] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
     if (user) {
       fetchTransactions();
+      fetchTenants();
     }
   }, [user]);
 
   const fetchTransactions = async () => {
     try {
       const token = await storage.getItem('authToken');
-      const response = await fetch('/api/transactions', {
+      const response = await fetch(`${API_BASE_URL}/api/transactions`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -39,6 +47,23 @@ export default function PointsScreen() {
       }
     } catch (error) {
       console.error('Failed to fetch transactions:', error);
+    }
+  };
+
+  const fetchTenants = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/tenants`);
+      if (response.ok) {
+        const data = await response.json();
+        // Build a map of tenantId to tenant name
+        const map: { [key: string]: string } = {};
+        (data.tenants || []).forEach((tenant: any) => {
+          map[tenant._id] = tenant.name;
+        });
+        setTenantsMap(map);
+      }
+    } catch (error) {
+      console.error('Failed to fetch tenants:', error);
     }
   };
 
@@ -197,6 +222,9 @@ export default function PointsScreen() {
                       <Text style={styles.transactionDescription}>
                         {transaction.description}
                       </Text>
+                      <Text style={styles.transactionBusiness}>
+                        {tenantsMap[transaction.tenantId] || 'Unknown Business'}
+                      </Text>
                       <Text style={styles.transactionBalance}>
                         Balance: {transaction.balance.toLocaleString()} points
                       </Text>
@@ -266,10 +294,7 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: 'center',
     marginBottom: 16,
-    shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
+    boxShadow: '0px 8px 16px rgba(37, 99, 235, 0.3)',
     elevation: 8,
   },
   currentPointsLabel: {
@@ -297,10 +322,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     alignItems: 'center',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    boxShadow: '0px 2px 8px rgba(0,0,0,0.1)',
     elevation: 2,
   },
   statIcon: {
@@ -347,10 +369,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 4,
     marginBottom: 16,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    boxShadow: '0px 2px 8px rgba(0,0,0,0.1)',
     elevation: 2,
   },
   filterTab: {
@@ -374,10 +393,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    boxShadow: '0px 2px 8px rgba(0,0,0,0.1)',
     elevation: 2,
   },
   transactionItem: {
@@ -411,6 +427,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#111827',
     marginBottom: 4,
+  },
+  transactionBusiness: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 2,
   },
   transactionBalance: {
     fontSize: 13,

@@ -1,6 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, AuthState } from '@/types/user';
 import { storage } from '@/utils/storage';
+import { Platform } from 'react-native';
+
+// Add API_BASE_URL
+const API_BASE_URL = Platform.OS === 'web'
+  ? ''
+  : 'http://192.168.0.138:8081';
 
 interface AuthContextType extends AuthState {
   login: (phoneNumber: string, password: string) => Promise<boolean>;
@@ -23,9 +29,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const checkAuthState = async () => {
     try {
-      const token = await storage.getItem('authToken');
+      console.log('AuthContext: Checking auth state...');
+      const tokenPromise = storage.getItem('authToken');
+      const timeout = new Promise<string | null>((_, reject) =>
+        setTimeout(() => reject(new Error('storage.getItem timeout')), 5000)
+      );
+      const token = await Promise.race([tokenPromise, timeout]);
+      console.log('AuthContext: Got token', token);
       if (token) {
         const user = await fetchUserProfile(token);
+        console.log('AuthContext: Got user', user);
         if (user) {
           setAuthState({
             user,
@@ -50,7 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setAuthState(prev => ({ ...prev, isLoading: true }));
       
-      const response = await fetch('/auth/login', {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -121,7 +134,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUserProfile = async (token: string): Promise<User | null> => {
     try {
-      const response = await fetch('/auth/profile', {
+      const response = await fetch(`${API_BASE_URL}/auth/profile`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

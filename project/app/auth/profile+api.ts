@@ -54,12 +54,16 @@ export async function GET(request: Request) {
     // Remove password from user object
     const { password: _, ...userWithoutPassword } = user;
 
+    // Add name property from firstName and lastName
+    const name = [user.firstName, user.lastName].filter(Boolean).join(' ');
+    const userWithName = { ...userWithoutPassword, name };
+
     await client.close();
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        user: userWithoutPassword
+        user: userWithName
       }),
       { 
         status: 200,

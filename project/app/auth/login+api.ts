@@ -57,13 +57,17 @@ export async function POST(request: Request) {
     // Remove sensitive data from user object
     const { password: _, ...userWithoutPassword } = user;
 
+    // Add name property from firstName and lastName
+    const name = [user.firstName, user.lastName].filter(Boolean).join(' ');
+    const userWithName = { ...userWithoutPassword, name };
+
     await client.close();
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         token,
-        user: userWithoutPassword
+        user: userWithName
       }),
       { 
         status: 200,

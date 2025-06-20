@@ -11,6 +11,10 @@ class Storage {
       }
     } else {
       try {
+        if (!SecureStore.isAvailableAsync || !(await SecureStore.isAvailableAsync())) {
+          console.error('SecureStore is not available on this device');
+          return;
+        }
         await SecureStore.setItemAsync(key, value);
       } catch (error) {
         console.error('Error saving to SecureStore:', error);
@@ -28,6 +32,10 @@ class Storage {
       }
     } else {
       try {
+        if (!SecureStore.isAvailableAsync || !(await SecureStore.isAvailableAsync())) {
+          console.error('SecureStore is not available on this device');
+          return null;
+        }
         return await SecureStore.getItemAsync(key);
       } catch (error) {
         console.error('Error reading from SecureStore:', error);
@@ -45,6 +53,10 @@ class Storage {
       }
     } else {
       try {
+        if (!SecureStore.isAvailableAsync || !(await SecureStore.isAvailableAsync())) {
+          console.error('SecureStore is not available on this device');
+          return;
+        }
         await SecureStore.deleteItemAsync(key);
       } catch (error) {
         console.error('Error removing from SecureStore:', error);

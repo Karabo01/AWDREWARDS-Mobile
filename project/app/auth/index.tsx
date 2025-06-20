@@ -223,11 +223,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 8,
-    shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    boxShadow: '0px 4px 8px rgba(37, 99, 235, 0.3)',
+    elevation: 4, // keep for native
   },
   loginButtonDisabled: {
     opacity: 0.7,

@@ -6,13 +6,20 @@ import {
   StyleSheet, 
   RefreshControl,
   TouchableOpacity,
-  Alert 
+  Alert, 
+  Platform 
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { Transaction } from '@/types/user';
 import { Award, ChevronRight, Gift, LogOut } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { storage } from '@/utils/storage';
+
+// Add API_BASE_URL
+const API_BASE_URL = Platform.OS === 'web'
+  ? ''
+  : 'http://192.168.0.138:8081';
 
 export default function HomeScreen() {
   const { user, refreshUser, logout } = useAuth();
@@ -30,7 +37,12 @@ export default function HomeScreen() {
 
   const fetchRecentTransactions = async () => {
     try {
-      const response = await fetch('/api/transactions/recent');
+      const token = await storage.getItem('authToken');
+      const response = await fetch(`${API_BASE_URL}/api/transactions/recent`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
       if (response.ok) {
         const data = await response.json();
         setRecentTransactions(data.transactions);
@@ -43,7 +55,7 @@ export default function HomeScreen() {
   const fetchAllTransactions = async () => {
     try {
       const token = await storage.getItem('authToken');
-      const response = await fetch('/api/transactions', {
+      const response = await fetch(`${API_BASE_URL}/api/transactions`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -92,7 +104,7 @@ export default function HomeScreen() {
             setIsRefreshing(true);
             try {
               await logout();
-              router.replace('/(auth)');
+              router.replace('/auth');
             } catch (error) {
               console.error('Logout failed:', error);
               Alert.alert('Error', 'Failed to sign out. Please try again.');
@@ -144,7 +156,9 @@ export default function HomeScreen() {
         }
       >
         <View style={styles.header}>
-          <Text style={styles.greeting}>Hello, {user?.firstName || 'Guest'}!</Text>
+          <Text style={styles.greeting}>
+            Hello, {user?.name || user?.email || 'Guest'}!
+          </Text>
           <Text style={styles.subtitle}>Welcome back to AWDRewards</Text>
         </View>
 
@@ -277,10 +291,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 24,
     marginBottom: 32,
-    shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
+    boxShadow: '0px 8px 16px rgba(37, 99, 235, 0.3)',
     elevation: 8,
   },
   pointsHeader: {
@@ -387,10 +398,7 @@ const styles = StyleSheet.create({
     padding: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    boxShadow: '0px 2px 8px rgba(0,0,0,0.1)',
     elevation: 2,
   },
   logoutButton: {

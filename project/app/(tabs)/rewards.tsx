@@ -5,14 +5,18 @@ import {
   ScrollView, 
   StyleSheet, 
   RefreshControl,
-  TouchableOpacity,
-  Image,
-  Alert
+  Alert,
+  Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { Reward } from '@/types/user';
-import { Gift, Star, Clock, MapPin } from 'lucide-react-native';
+import { Star, Gift } from 'lucide-react-native';
+
+// Add API_BASE_URL
+const API_BASE_URL = Platform.OS === 'web'
+  ? ''
+  : 'http://192.168.0.138:8081';
 
 export default function RewardsScreen() {
   const { user, refreshUser } = useAuth();
@@ -25,7 +29,7 @@ export default function RewardsScreen() {
 
   const fetchRewards = async () => {
     try {
-      const response = await fetch('/api/rewards');
+      const response = await fetch(`${API_BASE_URL}/api/rewards`);
       if (response.ok) {
         const data = await response.json();
         setRewards(data.rewards);
@@ -66,7 +70,7 @@ export default function RewardsScreen() {
 
   const processRedemption = async (reward: Reward) => {
     try {
-      const response = await fetch('/api/rewards/redeem', {
+      const response = await fetch(`${API_BASE_URL}/api/rewards/redeem`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -137,20 +141,6 @@ export default function RewardsScreen() {
                   </View>
                   
                   <Text style={styles.rewardDescription}>{reward.description}</Text>
-                  
-                  <TouchableOpacity
-                    style={[
-                      styles.redeemButton,
-                      !canAfford(reward.pointsRequired) && styles.redeemButtonDisabled
-                    ]}
-                    onPress={() => handleRedeemReward(reward)}
-                    disabled={!canAfford(reward.pointsRequired)}
-                  >
-                    <Gift size={16} color="#ffffff" />
-                    <Text style={styles.redeemButtonText}>
-                      {canAfford(reward.pointsRequired) ? 'Redeem Now' : 'Insufficient Points'}
-                    </Text>
-                  </TouchableOpacity>
                 </View>
               </View>
             ))
@@ -220,10 +210,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 16,
     marginBottom: 16,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    boxShadow: '0px 2px 8px rgba(0,0,0,0.1)',
     elevation: 2,
     overflow: 'hidden',
   },
