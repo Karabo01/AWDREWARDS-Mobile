@@ -12,11 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { Reward } from '@/types/user';
 import { Star, Gift } from 'lucide-react-native';
-
-// Add API_BASE_URL
-const API_BASE_URL = Platform.OS === 'web'
-  ? ''
-  : 'http://192.168.0.138:8081';
+import { API_BASE_URL } from '@/utils/api';
 
 export default function RewardsScreen() {
   const { user, refreshUser } = useAuth();

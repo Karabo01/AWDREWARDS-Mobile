@@ -36,16 +36,7 @@ export default function LoginScreen() {
     const success = await login(phoneNumber.trim(), password);
     
     if (success) {
-      Alert.alert(
-        'Login Successful',
-        'Welcome back to AWDRewards!',
-        [
-          { 
-            text: 'OK',
-            onPress: () => router.replace('/(tabs)')
-          }
-        ]
-      );
+      router.replace('/(tabs)');
     } else {
       setError('Invalid phone number or password. Please try again.');
     }

@@ -15,11 +15,7 @@ import { Transaction } from '@/types/user';
 import { Award, ChevronRight, Gift, LogOut } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { storage } from '@/utils/storage';
-
-// Add API_BASE_URL
-const API_BASE_URL = Platform.OS === 'web'
-  ? ''
-  : 'http://192.168.0.138:8081';
+import { API_BASE_URL } from '@/utils/api';
 
 export default function HomeScreen() {
   const { user, refreshUser, logout } = useAuth();
@@ -107,7 +103,6 @@ export default function HomeScreen() {
               router.replace('/auth');
             } catch (error) {
               console.error('Logout failed:', error);
-              Alert.alert('Error', 'Failed to sign out. Please try again.');
             } finally {
               setIsRefreshing(false);
             }

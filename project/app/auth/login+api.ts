@@ -59,7 +59,11 @@ export async function POST(request: Request) {
 
     // Add name property from firstName and lastName
     const name = [user.firstName, user.lastName].filter(Boolean).join(' ');
-    const userWithName = { ...userWithoutPassword, name };
+    const userWithName = { 
+      ...userWithoutPassword, 
+      name,
+      passwordChanged: typeof user.passwordChanged === 'boolean' ? user.passwordChanged : false
+    };
 
     await client.close();
 

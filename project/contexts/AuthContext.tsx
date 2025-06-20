@@ -1,12 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, AuthState } from '@/types/user';
 import { storage } from '@/utils/storage';
-import { Platform } from 'react-native';
-
-// Add API_BASE_URL
-const API_BASE_URL = Platform.OS === 'web'
-  ? ''
-  : 'http://192.168.0.138:8081';
+import { API_BASE_URL } from '@/utils/api';
 
 interface AuthContextType extends AuthState {
   login: (phoneNumber: string, password: string) => Promise<boolean>;
@@ -78,11 +73,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const points = typeof data.user.points === 'object' ? 
           data.user.points.$numberInt || 0 : 
           data.user.points || 0;
-          
+
+        // Ensure passwordChanged is present and boolean
+        const passwordChanged = typeof data.user.passwordChanged === 'boolean'
+          ? data.user.passwordChanged
+          : false;
+
         setAuthState({
           user: {
             ...data.user,
-            points: Number(points)
+            points: Number(points),
+            passwordChanged,
           },
           isAuthenticated: true,
           isLoading: false,

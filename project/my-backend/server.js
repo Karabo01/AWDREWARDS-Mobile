@@ -179,6 +179,36 @@ app.post('/api/rewards/redeem', requireAuth, async (req, res) => {
   }
 });
 
+// --- CHANGE PASSWORD ---
+app.post('/auth/change-password', requireAuth, async (req, res) => {
+  try {
+    const { newPassword } = req.body;
+    if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 8) {
+      return res.status(400).json({ success: false, message: 'New password must be at least 8 characters long' });
+    }
+
+    const client = new MongoClient(MONGODB_URI);
+    await client.connect();
+
+    const db = client.db('AWDRewards');
+    const users = db.collection('customers');
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    await users.updateOne(
+      { _id: new ObjectId(req.userId) },
+      { $set: { password: hashedPassword, passwordChanged: true } }
+    );
+
+    await client.close();
+
+    return res.status(200).json({ success: true, message: 'Password updated successfully' });
+  } catch (error) {
+    console.error('Password change error:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
 // --- Helper to robustly extract ISO date string from MongoDB extended JSON ---
 function extractIsoDate(val) {
   if (!val) return '';

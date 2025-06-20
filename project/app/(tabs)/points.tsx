@@ -13,11 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Transaction } from '@/types/user';
 import { TrendingUp, TrendingDown, Filter } from 'lucide-react-native';
 import { storage } from '@/utils/storage';
-
-// Add API_BASE_URL
-const API_BASE_URL = Platform.OS === 'web'
-  ? ''
-  : 'http://192.168.0.138:8081';
+import { API_BASE_URL } from '@/utils/api';
 
 export default function PointsScreen() {
   const { user, refreshUser } = useAuth();
