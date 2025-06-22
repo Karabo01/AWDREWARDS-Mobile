@@ -36,7 +36,7 @@ export default function LoginScreen() {
     const success = await login(phoneNumber.trim(), password);
     
     if (success) {
-      router.replace('/(tabs)');
+      router.replace('/select-tenant');
     } else {
       setError('Invalid phone number or password. Please try again.');
     }

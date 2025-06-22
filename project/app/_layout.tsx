@@ -20,9 +20,9 @@ function RootLayoutNav() {
         if (needsPasswordChange && segments[1] !== 'change-password') {
           router.replace('/auth/change-password');
         } else if (!needsPasswordChange && segments[1] === 'change-password') {
-          router.replace('/(tabs)');
+          router.replace('/select-tenant');
         } else if (!needsPasswordChange) {
-          router.replace('/(tabs)');
+          router.replace('/select-tenant');
         }
       }
     }

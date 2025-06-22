@@ -7,6 +7,8 @@ interface AuthContextType extends AuthState {
   login: (phoneNumber: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  selectedTenantId: string | null;
+  setSelectedTenantId: (tenantId: string | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -17,9 +19,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated: false,
     isLoading: true,
   });
+  const [selectedTenantId, setSelectedTenantIdState] = useState<string | null>(null);
 
   useEffect(() => {
     checkAuthState();
+  }, []);
+
+  // Persist selectedTenantId in storage
+  useEffect(() => {
+    storage.getItem('selectedTenantId').then(id => {
+      if (id) setSelectedTenantIdState(id);
+    });
   }, []);
 
   const checkAuthState = async () => {
@@ -152,12 +162,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const setSelectedTenantId = (tenantId: string | null) => {
+    setSelectedTenantIdState(tenantId);
+    if (tenantId) {
+      storage.setItem('selectedTenantId', tenantId);
+    } else {
+      storage.removeItem('selectedTenantId');
+    }
+  };
+
   return (
     <AuthContext.Provider value={{
       ...authState,
       login,
       logout,
       refreshUser,
+      selectedTenantId,
+      setSelectedTenantId,
     }}>
       {children}
     </AuthContext.Provider>

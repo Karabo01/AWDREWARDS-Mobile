@@ -1,6 +1,7 @@
 const express = require('express');
 const { MongoClient, ObjectId } = require('mongodb');
 const bcrypt = require('bcryptjs');
+const mongoose = require('mongoose');
 
 const app = express();
 const PORT = 8081;
@@ -8,6 +9,25 @@ const PORT = 8081;
 const MONGODB_URI = 'mongodb+srv://awdrewards:ADu7kcStcJSq8QGF@awdrewards.g4p1fdg.mongodb.net/AWDRewards?retryWrites=true&w=majority';
 
 app.use(express.json());
+
+// --- Mongoose Transaction Schema ---
+const transactionSchema = new mongoose.Schema(
+  {
+    tenantId: { type: String, required: true },
+    customerId: { type: String, required: true },
+    type: { type: String, required: true },
+    points: { type: Number, required: true },
+    rewardId: { type: String, required: false },
+    description: { type: String, required: true },
+    balance: { type: Number, required: true }
+  },
+  { timestamps: true }
+);
+
+const Transaction = mongoose.models.Transaction || mongoose.model('Transaction', transactionSchema);
+
+// --- Connect to MongoDB with mongoose ---
+mongoose.connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true });
 
 // --- AUTH LOGIN (already implemented) ---
 app.post('/auth/login', async (req, res) => {
@@ -136,7 +156,6 @@ app.post('/api/rewards/redeem', requireAuth, async (req, res) => {
     const db = client.db('AWDRewards');
     const users = db.collection('customers');
     const rewards = db.collection('rewards');
-    const transactions = db.collection('transactions');
 
     const user = await users.findOne({ _id: new ObjectId(req.userId) });
     const reward = await rewards.findOne({ _id: new ObjectId(rewardId) });
@@ -153,16 +172,15 @@ app.post('/api/rewards/redeem', requireAuth, async (req, res) => {
 
     const newBalance = user.points - reward.pointsRequired;
 
-    await transactions.insertOne({
+    // Use mongoose Transaction model to insert
+    await Transaction.create({
       tenantId: reward.tenantId,
       customerId: req.userId,
       type: 'REWARD_REDEEMED',
       points: -reward.pointsRequired,
       rewardId: rewardId,
       description: `Redeemed reward: ${reward.name}`,
-      balance: newBalance,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      balance: newBalance
     });
 
     await users.updateOne(
@@ -246,28 +264,17 @@ function extractIsoDate(val) {
 // --- GET ALL TRANSACTIONS ---
 app.get('/api/transactions', requireAuth, async (req, res) => {
   try {
-    const client = new MongoClient(MONGODB_URI);
-    await client.connect();
-
-    const db = client.db('AWDRewards');
-    const transactions = db.collection('transactions');
-
-    const userTransactions = await transactions
-      .find({ customerId: req.userId })
+    // Use mongoose Transaction model
+    const userTransactions = await Transaction.find({ customerId: req.userId })
       .sort({ createdAt: -1 })
-      .toArray();
+      .lean();
 
     const transformedTransactions = userTransactions.map(tx => ({
       ...tx,
       _id: tx._id.toString(),
-      points: typeof tx.points === 'object' ? Number(tx.points.$numberInt) : tx.points,
-      balance: typeof tx.balance === 'object' ? Number(tx.balance.$numberInt) : tx.balance,
-      createdAt: extractIsoDate(tx.createdAt),
-      updatedAt: extractIsoDate(tx.updatedAt),
-      rewardId: tx.rewardId ? (typeof tx.rewardId === 'object' && tx.rewardId.$oid ? tx.rewardId.$oid : tx.rewardId) : undefined,
+      createdAt: tx.createdAt ? new Date(tx.createdAt).toISOString() : '',
+      updatedAt: tx.updatedAt ? new Date(tx.updatedAt).toISOString() : '',
     }));
-
-    await client.close();
 
     return res.status(200).json({ success: true, transactions: transformedTransactions });
   } catch (error) {
@@ -279,29 +286,18 @@ app.get('/api/transactions', requireAuth, async (req, res) => {
 // --- GET RECENT TRANSACTIONS ---
 app.get('/api/transactions/recent', requireAuth, async (req, res) => {
   try {
-    const client = new MongoClient(MONGODB_URI);
-    await client.connect();
-
-    const db = client.db('AWDRewards');
-    const transactions = db.collection('transactions');
-
-    const recentTransactions = await transactions
-      .find({ customerId: req.userId })
+    // Use mongoose Transaction model
+    const recentTransactions = await Transaction.find({ customerId: req.userId })
       .sort({ createdAt: -1 })
       .limit(10)
-      .toArray();
+      .lean();
 
     const transformedTransactions = recentTransactions.map(tx => ({
       ...tx,
       _id: tx._id.toString(),
-      points: typeof tx.points === 'object' ? Number(tx.points.$numberInt) : tx.points,
-      balance: typeof tx.balance === 'object' ? Number(tx.balance.$numberInt) : tx.balance,
-      createdAt: extractIsoDate(tx.createdAt),
-      updatedAt: extractIsoDate(tx.updatedAt),
-      rewardId: tx.rewardId ? (typeof tx.rewardId === 'object' && tx.rewardId.$oid ? tx.rewardId.$oid : tx.rewardId) : undefined,
+      createdAt: tx.createdAt ? new Date(tx.createdAt).toISOString() : '',
+      updatedAt: tx.updatedAt ? new Date(tx.updatedAt).toISOString() : '',
     }));
-
-    await client.close();
 
     return res.status(200).json({ success: true, transactions: transformedTransactions });
   } catch (error) {

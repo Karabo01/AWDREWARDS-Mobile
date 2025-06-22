@@ -6,7 +6,8 @@ import {
   StyleSheet, 
   RefreshControl,
   TouchableOpacity,
-  Platform 
+  Platform,
+  DeviceEventEmitter 
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,9 +15,10 @@ import { Transaction } from '@/types/user';
 import { TrendingUp, TrendingDown, Filter } from 'lucide-react-native';
 import { storage } from '@/utils/storage';
 import { API_BASE_URL } from '@/utils/api';
+import { ScrollView as RNScrollView } from 'react-native';
 
 export default function PointsScreen() {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, selectedTenantId } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'earned' | 'redeemed'>('all');
@@ -27,6 +29,12 @@ export default function PointsScreen() {
       fetchTransactions();
       fetchTenants();
     }
+    // Listen for refreshPointsTab event
+    const sub = DeviceEventEmitter.addListener('refreshPointsTab', async () => {
+      await refreshUser();
+      await fetchTransactions();
+    });
+    return () => sub.remove();
   }, [user]);
 
   const fetchTransactions = async () => {
@@ -70,6 +78,9 @@ export default function PointsScreen() {
     setIsRefreshing(false);
   };
 
+  // Only show transactions for selected tenant
+  const selectedTenantTransactions = transactions.filter(tx => tx.tenantId === selectedTenantId);
+
   const getTransactionTypeFromString = (type: string) => {
     switch (type) {
       case 'REWARD_REDEEMED':
@@ -81,12 +92,12 @@ export default function PointsScreen() {
     }
   };
 
-  const filteredTransactions = transactions.filter(transaction => {
+  const filteredTransactions = selectedTenantTransactions.filter(transaction => {
     if (filter === 'all') return true;
     return getTransactionTypeFromString(transaction.type) === filter;
   });
 
-  const totalEarnedThisMonth = transactions
+  const totalEarnedThisMonth = selectedTenantTransactions
     .filter(t => {
       const transactionDate = new Date(t.createdAt);
       const currentDate = new Date();
@@ -96,7 +107,7 @@ export default function PointsScreen() {
     })
     .reduce((sum, t) => sum + Math.abs(t.points), 0);
 
-  const totalRedeemedThisMonth = transactions
+  const totalRedeemedThisMonth = selectedTenantTransactions
     .filter(t => {
       const transactionDate = new Date(t.createdAt);
       const currentDate = new Date();
@@ -116,7 +127,7 @@ export default function PointsScreen() {
     });
   };
 
-  if (!user) {
+  if (!user || !selectedTenantId) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
@@ -136,14 +147,22 @@ export default function PointsScreen() {
       >
         <View style={styles.header}>
           <Text style={styles.title}>Points Overview</Text>
-          <Text style={styles.subtitle}>Track your rewards activity</Text>
+          <Text style={styles.subtitle}>
+            {tenantsMap[selectedTenantId] || 'Unknown Business'}
+          </Text>
         </View>
 
         <View style={styles.statsContainer}>
           <View style={styles.currentPointsCard}>
-            <Text style={styles.currentPointsLabel}>Current Balance</Text>
-            <Text style={styles.currentPointsValue}>{user.points.toLocaleString()}</Text>
-            <Text style={styles.currentPointsSubtext}>AWD Points</Text>
+            <Text style={styles.currentPointsLabel}>
+              {tenantsMap[selectedTenantId] || 'Unknown Business'}
+            </Text>
+            <Text style={styles.currentPointsValue}>
+              {typeof (selectedTenantTransactions[0]?.balance) === 'number'
+                ? selectedTenantTransactions[0].balance.toLocaleString()
+                : '0'}
+            </Text>
+            <Text style={styles.currentPointsSubtext}>Points</Text>
           </View>
 
           <View style={styles.monthlyStats}>
@@ -290,8 +309,15 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: 'center',
     marginBottom: 16,
+    width: 350, // Optional: set a fixed width for consistent centering
+    alignSelf: 'center', // Center the card horizontally
     boxShadow: '0px 8px 16px rgba(37, 99, 235, 0.3)',
     elevation: 8,
+    justifyContent: 'center', // Center content vertically
+  },
+  currentPointsCardActive: {
+    borderWidth: 2,
+    borderColor: '#2563EB',
   },
   currentPointsLabel: {
     fontSize: 16,

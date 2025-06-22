@@ -6,7 +6,8 @@ import {
   StyleSheet, 
   RefreshControl,
   Alert,
-  Platform
+  Platform,
+  DeviceEventEmitter
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,7 +16,7 @@ import { Star, Gift } from 'lucide-react-native';
 import { API_BASE_URL } from '@/utils/api';
 
 export default function RewardsScreen() {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, selectedTenantId } = useAuth();
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -81,6 +82,8 @@ export default function RewardsScreen() {
           [{ text: 'OK' }]
         );
         await refreshUser();
+        // Notify points tab to refresh transactions
+        DeviceEventEmitter.emit('refreshPointsTab');
       } else {
         const error = await response.json();
         Alert.alert('Redemption Failed', error.message || 'Please try again.');
@@ -94,7 +97,15 @@ export default function RewardsScreen() {
     return user ? user.points >= pointsRequired : false;
   };
 
-  if (!user) {
+  // Only show rewards for selected tenant
+  const tenantRewards = rewards.filter(r => r.tenantId === selectedTenantId);
+
+  // Only show rewards user qualifies for
+  const qualifiedRewards = tenantRewards.filter(
+    reward => user && user.points >= reward.pointsRequired
+  );
+
+  if (!user || !selectedTenantId) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
@@ -122,8 +133,8 @@ export default function RewardsScreen() {
         </View>
 
         <View style={styles.rewardsContainer}>
-          {rewards.length > 0 ? (
-            rewards.map((reward) => (
+          {qualifiedRewards.length > 0 ? (
+            qualifiedRewards.map((reward) => (
               <View key={reward._id} style={styles.rewardCard}>
                 <View style={styles.rewardContent}>
                   <View style={styles.rewardHeader}>
@@ -145,7 +156,7 @@ export default function RewardsScreen() {
               <Gift size={48} color="#D1D5DB" />
               <Text style={styles.emptyStateTitle}>No Rewards Available</Text>
               <Text style={styles.emptyStateText}>
-                Check back later for new rewards.
+                You do not currently qualify for any rewards.
               </Text>
             </View>
           )}

@@ -11,7 +11,7 @@ export default function Index() {
     console.log('Index: isLoading', isLoading, 'isAuthenticated', isAuthenticated);
     if (!isLoading) {
       if (isAuthenticated) {
-        router.replace('/(tabs)');
+        router.replace('/select-tenant');
       } else {
         router.replace('/auth');
       }
