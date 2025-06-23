@@ -19,14 +19,18 @@ function RootLayoutNav() {
       } else if (isAuthenticated && inAuthGroup) {
         if (needsPasswordChange && segments[1] !== 'change-password') {
           router.replace('/auth/change-password');
-        } else if (!needsPasswordChange && segments[1] === 'change-password') {
+        } 
+        // Only redirect away from change-password if passwordChanged is true
+        else if (!needsPasswordChange && segments[1] === 'change-password') {
           router.replace('/select-tenant');
-        } else if (!needsPasswordChange) {
+        } 
+        // Prevent double redirect: only redirect to select-tenant if not on change-password and passwordChanged is true
+        else if (!needsPasswordChange && segments[1] !== 'change-password') {
           router.replace('/select-tenant');
         }
       }
     }
-  }, [isAuthenticated, isLoading, segments, user]);
+  }, [isAuthenticated, isLoading, segments, user?.passwordChanged]);
 
   return (
     <>

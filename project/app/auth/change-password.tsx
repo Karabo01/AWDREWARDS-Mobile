@@ -64,9 +64,13 @@ export default function ChangePasswordScreen() {
           'Your password has been updated successfully.',
           [{ 
             text: 'OK',
-            onPress: () => router.replace('/(tabs)')
+            onPress: () => {
+              setIsLoading(false);
+              router.replace('/(tabs)');
+            }
           }]
         );
+        return; // Prevent setIsLoading(false) below from running before redirect
       } else {
         setError(data.message || 'Failed to change password');
       }
@@ -219,4 +223,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-   

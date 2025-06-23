@@ -21,8 +21,20 @@ export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   
-  const { login } = useAuth();
+  const { login, user, isAuthenticated, isLoading: authLoading } = useAuth();
   const router = useRouter();
+
+  // Redirect after login based on passwordChanged status
+  React.useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      if (user?.passwordChanged === false) {
+        router.replace('/auth/change-password');
+      } else {
+        router.replace('/select-tenant');
+      }
+      setIsLoading(false);
+    }
+  }, [authLoading, isAuthenticated, user, router]);
 
   const handleLogin = async () => {
     if (!phoneNumber.trim() || !password.trim()) {
@@ -34,14 +46,12 @@ export default function LoginScreen() {
     setError('');
 
     const success = await login(phoneNumber.trim(), password);
-    
-    if (success) {
-      router.replace('/select-tenant');
-    } else {
+
+    if (!success) {
       setError('Invalid phone number or password. Please try again.');
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
+    // If success, redirect will be handled by useEffect above
   };
 
   const formatPhoneNumber = (text: string) => {
