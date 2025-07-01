@@ -7,21 +7,30 @@ import {
   RefreshControl,
   Alert,
   Platform,
-  DeviceEventEmitter
+  DeviceEventEmitter,
+  TouchableOpacity,
+  Modal
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { Reward } from '@/types/user';
 import { Star, Gift } from 'lucide-react-native';
 import { API_BASE_URL } from '@/utils/api';
+import QRCode from 'react-native-qrcode-svg';
+import { storage } from '@/utils/storage';
+import { Transaction } from '@/types/user';
 
 export default function RewardsScreen() {
   const { user, refreshUser, selectedTenantId } = useAuth();
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showQR, setShowQR] = useState(false);
+  const [qrReward, setQRReward] = useState<Reward | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   useEffect(() => {
     fetchRewards();
+    fetchTransactions();
   }, []);
 
   const fetchRewards = async () => {
@@ -33,6 +42,23 @@ export default function RewardsScreen() {
       }
     } catch (error) {
       console.error('Failed to fetch rewards:', error);
+    }
+  };
+
+  const fetchTransactions = async () => {
+    try {
+      const token = await storage.getItem('authToken');
+      const response = await fetch(`${API_BASE_URL}/api/transactions`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setTransactions(data.transactions);
+      }
+    } catch (error) {
+      // fail silently
     }
   };
 
@@ -97,12 +123,66 @@ export default function RewardsScreen() {
     return user ? user.points >= pointsRequired : false;
   };
 
+  // Get user's current points for selected tenant
+  const tenantTransactions = transactions
+    .filter(tx => tx.tenantId === selectedTenantId)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const currentPoints = tenantTransactions.length > 0
+    ? tenantTransactions[0].balance
+    : 0;
+
   // Only show rewards for selected tenant
   const tenantRewards = rewards.filter(r => r.tenantId === selectedTenantId);
 
-  // Only show rewards user qualifies for
+  // Only show rewards user qualifies for (in selected tenant)
   const qualifiedRewards = tenantRewards.filter(
-    reward => user && user.points >= reward.pointsRequired
+    reward => currentPoints >= reward.pointsRequired
+  );
+
+  // QR code data for redemption
+  const qrData = user && qrReward ? JSON.stringify({
+    userId: user.id,
+    rewardId: qrReward._id,
+    tenantId: qrReward.tenantId,
+    action: 'REDEEM_REWARD'
+  }) : '';
+
+  // QR modal
+  const renderQRModal = () => (
+    <Modal
+      animationType="fade"
+      transparent={true}
+      visible={showQR}
+      onRequestClose={() => setShowQR(false)}
+    >
+      <TouchableOpacity
+        style={styles.modalOverlay}
+        activeOpacity={1}
+        onPress={() => setShowQR(false)}
+      >
+        <View style={styles.modalContent}>
+          <View style={styles.qrContainer}>
+            <Text style={styles.qrTitle}>Redeem Reward</Text>
+            <Text style={styles.qrSubtitle}>
+              Show this QR code to the business to redeem your reward
+            </Text>
+            <View style={styles.qrCode}>
+              <QRCode
+                value={qrData}
+                size={200}
+                color="#111827"
+              />
+            </View>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowQR(false)}
+            >
+              <Text style={styles.closeButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </TouchableOpacity>
+    </Modal>
   );
 
   if (!user || !selectedTenantId) {
@@ -117,6 +197,7 @@ export default function RewardsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {renderQRModal()}
       <ScrollView 
         style={styles.scrollView}
         refreshControl={
@@ -128,7 +209,9 @@ export default function RewardsScreen() {
           <Text style={styles.subtitle}>Redeem your points for great rewards</Text>
           <View style={styles.pointsInfo}>
             <Star size={16} color="#F59E0B" />
-            <Text style={styles.pointsText}>{user.points.toLocaleString()} points available</Text>
+            <Text style={styles.pointsText}>
+              {typeof currentPoints === 'number' ? currentPoints.toLocaleString() : '0'} points available
+            </Text>
           </View>
         </View>
 
@@ -148,6 +231,15 @@ export default function RewardsScreen() {
                   </View>
                   
                   <Text style={styles.rewardDescription}>{reward.description}</Text>
+                  <TouchableOpacity
+                    style={styles.redeemButton}
+                    onPress={() => {
+                      setQRReward(reward);
+                      setShowQR(true);
+                    }}
+                  >
+                    <Text style={styles.redeemButtonText}>Redeem</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             ))
@@ -283,5 +375,72 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  redeemButton: {
+    backgroundColor: '#2563EB',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  redeemButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    padding: 32,
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  qrContainer: {
+    alignItems: 'center',
+  },
+  qrTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 8,
+  },
+  qrSubtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  qrCode: {
+    padding: 16,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    marginBottom: 24,
+  },
+  closeButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: '#2563EB',
+    borderRadius: 12,
+  },
+  closeButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

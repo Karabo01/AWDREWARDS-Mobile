@@ -8,15 +8,20 @@ import {
   TouchableOpacity,
   Alert, 
   Platform,
-  Dimensions
+  Dimensions,
+  Modal
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { Transaction } from '@/types/user';
-import { Award, ChevronRight, Gift, LogOut } from 'lucide-react-native';
+import { Award, ChevronRight, Gift, LogOut, QrCode } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { storage } from '@/utils/storage';
 import { API_BASE_URL } from '@/utils/api';
+import QRCode from 'react-native-qrcode-svg';
+
+// Use the local User interface instead of the one from '@/types/user'
+// (Removed duplicate User type declaration)
 
 export default function HomeScreen() {
   const { user, refreshUser, logout, selectedTenantId } = useAuth();
@@ -24,6 +29,7 @@ export default function HomeScreen() {
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showQRCode, setShowQRCode] = useState(false);
 
   // Add state for tenants
   const [tenantsMap, setTenantsMap] = useState<{ [key: string]: string }>({});
@@ -164,6 +170,51 @@ export default function HomeScreen() {
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0].balance
     : 0;
 
+  // Generate QR code data
+  const qrData = user ? JSON.stringify({
+    name: user.name,
+    phone: user.phone,
+    tenantId: selectedTenantId
+  }) : '';
+
+  // Add this before the return statement
+  const renderQRCodeModal = () => (
+    <Modal
+      animationType="fade"
+      transparent={true}
+      visible={showQRCode}
+      onRequestClose={() => setShowQRCode(false)}
+    >
+      <TouchableOpacity 
+        style={styles.modalOverlay}
+        activeOpacity={1} 
+        onPress={() => setShowQRCode(false)}
+      >
+        <View style={styles.modalContent}>
+          <View style={styles.qrContainer}>
+            <Text style={styles.qrTitle}>Earn Points</Text>
+            <Text style={styles.qrSubtitle}>
+              Show this QR code to the business to earn points
+            </Text>
+            <View style={styles.qrCode}>
+              <QRCode
+                value={qrData}
+                size={200}
+                color="#111827"
+              />
+            </View>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowQRCode(false)}
+            >
+              <Text style={styles.closeButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+
   if (!user || !selectedTenantId) {
     return (
       <SafeAreaView style={styles.container}>
@@ -187,6 +238,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {renderQRCodeModal()}
       <ScrollView 
         style={styles.scrollView}
         refreshControl={
@@ -269,6 +321,14 @@ export default function HomeScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.quickActions}>
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => setShowQRCode(true)}
+            >
+              <QrCode size={24} color="#10B981" />
+              <Text style={styles.actionButtonText}>Earn Points</Text>
+              <ChevronRight size={16} color="#6B7280" />
+            </TouchableOpacity>
             <TouchableOpacity 
               style={styles.actionButton}
               onPress={() => router.push('/(tabs)/rewards')}
@@ -466,4 +526,66 @@ const styles = StyleSheet.create({
   logoutButtonText: {
     color: '#EF4444',
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    padding: 32,
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  qrContainer: {
+    alignItems: 'center',
+  },
+  qrTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 8,
+  },
+  qrSubtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  qrCode: {
+    padding: 16,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    marginBottom: 24,
+  },
+  closeButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: '#2563EB',
+    borderRadius: 12,
+  },
+  closeButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });
+
+export type User = {
+  _id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  // ...other properties
+};
