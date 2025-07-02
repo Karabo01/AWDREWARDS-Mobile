@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, AuthState } from '@/types/user';
 import { storage } from '@/utils/storage';
 import { API_BASE_URL } from '@/utils/api';
+import { DeviceEventEmitter } from 'react-native';
 
 interface AuthContextType extends AuthState {
   login: (phoneNumber: string, password: string) => Promise<boolean>;
@@ -138,6 +139,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }));
         }
       }
+      // Emit global refresh event for all tabs
+      DeviceEventEmitter.emit('refreshAllTabs');
     } catch (error) {
       console.error('User refresh failed:', error);
     }

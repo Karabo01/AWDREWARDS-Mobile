@@ -31,6 +31,11 @@ export default function RewardsScreen() {
   useEffect(() => {
     fetchRewards();
     fetchTransactions();
+    // Listen for global refresh event
+    const sub = DeviceEventEmitter.addListener('refreshAllTabs', async () => {
+      await handleRefresh();
+    });
+    return () => sub.remove();
   }, []);
 
   const fetchRewards = async () => {
@@ -66,6 +71,7 @@ export default function RewardsScreen() {
     setIsRefreshing(true);
     await refreshUser();
     await fetchRewards();
+    await fetchTransactions(); // fetch transactions as well
     setIsRefreshing(false);
   };
 
@@ -108,6 +114,7 @@ export default function RewardsScreen() {
           [{ text: 'OK' }]
         );
         await refreshUser();
+        await fetchRewards(); // <-- Add this line to refresh rewards after redemption
         // Notify points tab to refresh transactions
         DeviceEventEmitter.emit('refreshPointsTab');
       } else {
@@ -141,7 +148,7 @@ export default function RewardsScreen() {
 
   // QR code data for redemption
   const qrData = user && qrReward ? JSON.stringify({
-    userId: user.id,
+    name: user.name, // changed from userId to name
     rewardId: qrReward._id,
     tenantId: qrReward.tenantId,
     action: 'REDEEM_REWARD'

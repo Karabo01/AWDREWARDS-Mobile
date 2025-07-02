@@ -30,11 +30,18 @@ export default function PointsScreen() {
       fetchTenants();
     }
     // Listen for refreshPointsTab event
-    const sub = DeviceEventEmitter.addListener('refreshPointsTab', async () => {
+    const sub1 = DeviceEventEmitter.addListener('refreshPointsTab', async () => {
       await refreshUser();
       await fetchTransactions();
     });
-    return () => sub.remove();
+    // Listen for global refresh event
+    const sub2 = DeviceEventEmitter.addListener('refreshAllTabs', async () => {
+      await handleRefresh();
+    });
+    return () => {
+      sub1.remove();
+      sub2.remove();
+    };
   }, [user]);
 
   const fetchTransactions = async () => {
@@ -75,6 +82,7 @@ export default function PointsScreen() {
     setIsRefreshing(true);
     await refreshUser();
     await fetchTransactions();
+    await fetchTenants(); // also refresh tenants for up-to-date names
     setIsRefreshing(false);
   };
 

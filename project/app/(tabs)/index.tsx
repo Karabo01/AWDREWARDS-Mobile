@@ -9,7 +9,8 @@ import {
   Alert, 
   Platform,
   Dimensions,
-  Modal
+  Modal,
+  DeviceEventEmitter
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
@@ -40,6 +41,11 @@ export default function HomeScreen() {
       fetchAllTransactions();
       fetchTenants();
     }
+    // Listen for global refresh event
+    const sub = DeviceEventEmitter.addListener('refreshAllTabs', async () => {
+      await handleRefresh();
+    });
+    return () => sub.remove();
   }, [user]);
 
   const fetchRecentTransactions = async () => {
@@ -98,6 +104,7 @@ export default function HomeScreen() {
     await refreshUser();
     await fetchRecentTransactions();
     await fetchAllTransactions();
+    await fetchTenants(); // also refresh tenants for up-to-date names
     setIsRefreshing(false);
   };
 
