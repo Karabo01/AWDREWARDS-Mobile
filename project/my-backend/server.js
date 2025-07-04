@@ -2,6 +2,7 @@ const express = require('express');
 const { MongoClient, ObjectId } = require('mongodb');
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
+const cors = require('cors');
 
 const app = express();
 const PORT = 8081;
@@ -9,6 +10,7 @@ const PORT = 8081;
 const MONGODB_URI = 'mongodb+srv://awdrewards:ADu7kcStcJSq8QGF@awdrewards.g4p1fdg.mongodb.net/AWDRewards?retryWrites=true&w=majority';
 
 app.use(express.json());
+app.use(cors());
 
 // Log every incoming HTTP request
 app.use((req, res, next) => {
