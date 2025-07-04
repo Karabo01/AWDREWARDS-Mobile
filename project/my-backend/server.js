@@ -10,6 +10,12 @@ const MONGODB_URI = 'mongodb+srv://awdrewards:ADu7kcStcJSq8QGF@awdrewards.g4p1fd
 
 app.use(express.json());
 
+// Log every incoming HTTP request
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  next();
+});
+
 // --- Mongoose Transaction Schema ---
 const transactionSchema = new mongoose.Schema(
   {
@@ -27,7 +33,9 @@ const transactionSchema = new mongoose.Schema(
 const Transaction = mongoose.models.Transaction || mongoose.model('Transaction', transactionSchema);
 
 // --- Connect to MongoDB with mongoose ---
-mongoose.connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+mongoose.connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log('Mongoose connected to MongoDB'))
+  .catch(err => console.error('Mongoose connection error:', err));
 
 // --- AUTH LOGIN (already implemented) ---
 app.post('/auth/login', async (req, res) => {
@@ -40,6 +48,7 @@ app.post('/auth/login', async (req, res) => {
 
     const client = new MongoClient(MONGODB_URI);
     await client.connect();
+    console.log('MongoClient connected for /auth/login');
 
     const db = client.db('AWDRewards');
     const users = db.collection('customers');
@@ -89,6 +98,7 @@ app.get('/api/rewards', async (req, res) => {
   try {
     const client = new MongoClient(MONGODB_URI);
     await client.connect();
+    console.log('MongoClient connected for /api/rewards');
 
     const db = client.db('AWDRewards');
     const rewards = db.collection('rewards');
@@ -152,6 +162,7 @@ app.post('/api/rewards/redeem', requireAuth, async (req, res) => {
 
     const client = new MongoClient(MONGODB_URI);
     await client.connect();
+    console.log('MongoClient connected for /api/rewards/redeem');
 
     const db = client.db('AWDRewards');
     const users = db.collection('customers');
@@ -207,6 +218,7 @@ app.post('/auth/change-password', requireAuth, async (req, res) => {
 
     const client = new MongoClient(MONGODB_URI);
     await client.connect();
+    console.log('MongoClient connected for /auth/change-password');
 
     const db = client.db('AWDRewards');
     const users = db.collection('customers');
@@ -311,6 +323,7 @@ app.get('/api/tenants', async (req, res) => {
   try {
     const client = new MongoClient(MONGODB_URI);
     await client.connect();
+    console.log('MongoClient connected for /api/tenants');
 
     const db = client.db('AWDRewards');
     const tenants = db.collection('tenants');
