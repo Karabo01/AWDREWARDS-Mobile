@@ -6,6 +6,9 @@ import { useRouter } from 'expo-router';
 import { API_BASE_URL } from '@/utils/api';
 import { Picker } from '@react-native-picker/picker';
 
+// Add the signature constant (should match your server)
+const APP_SIGNATURE = '2d1e7f8b-4c9a-4e2b-9f3d-8b7e6c5a1d2f$!@';
+
 export default function SelectTenantScreen() {
   const { user, setSelectedTenantId } = useAuth();
   const [tenants, setTenants] = useState<{ _id: string; name: string }[]>([]);
@@ -33,12 +36,29 @@ export default function SelectTenantScreen() {
         userTenantIds = [user.tenantId];
       }
 
-      // Fetch all tenants, then filter to only those the user is a part of
-      const response = await fetch(`${API_BASE_URL}/api/tenants`);
+      // Fetch all tenants WITH the required signature header
+      const response = await fetch(`${API_BASE_URL}/api/tenants`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-awd-app-signature': APP_SIGNATURE
+        }
+      });
+
+      // Add better error handling
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Tenants fetch error:', response.status, errorText);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const data = await response.json();
+      console.log('Tenants response:', data); // Debug log
+      
       const filtered = (data.tenants || []).filter((t: any) =>
         userTenantIds.includes(t._id)
       );
+      
       setTenants(filtered);
       if (filtered.length === 1) {
         setSelected(filtered[0]._id);
@@ -47,6 +67,7 @@ export default function SelectTenantScreen() {
         router.replace('/(tabs)');
       }
     } catch (e) {
+      console.error('Fetch tenants error:', e);
       setTenants([]);
     }
     setLoading(false);

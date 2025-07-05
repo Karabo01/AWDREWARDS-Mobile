@@ -16,19 +16,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// --- Secret signature middleware ---
-const APP_SIGNATURE =  '2d1e7f8b-4c9a-4e2b-9f3d-8b7e6c5a1d2f$!@';
-
-
-app.use((req, res, next) => {
-  const signature = req.headers['x-awd-app-signature'];
-  if (!signature || signature !== APP_SIGNATURE) {
-    return res.status(403).json({ success: false, message: 'Forbidden: Invalid app signature' });
-  }
-  next();
-});
-
-// Place this as the first middleware, before any other app.use or routes
+// CORS middleware - place early
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
@@ -38,6 +26,17 @@ app.use((req, res, next) => {
   }
   next();
 });
+
+// --- Secret signature middleware (only for non-auth endpoints) ---
+const APP_SIGNATURE = '2d1e7f8b-4c9a-4e2b-9f3d-8b7e6c5a1d2f$!@';
+
+function requireSignature(req, res, next) {
+  const signature = req.headers['x-awd-app-signature'];
+  if (!signature || signature !== APP_SIGNATURE) {
+    return res.status(403).json({ success: false, message: 'Forbidden: Invalid app signature' });
+  }
+  next();
+}
 
 // --- Mongoose Transaction Schema ---
 const transactionSchema = new mongoose.Schema(
@@ -60,8 +59,26 @@ mongoose.connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true 
   .then(() => console.log('Mongoose connected to MongoDB'))
   .catch(err => console.error('Mongoose connection error:', err));
 
-// --- AUTH LOGIN (already implemented) ---
-app.post('/auth/login', async (req, res) => {
+// --- AUTH MIDDLEWARE ---
+function requireAuth(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ success: false, message: 'No authorization token provided' });
+  }
+  const token = authHeader.substring(7);
+  try {
+    const decoded = Buffer.from(token, 'base64').toString('utf-8');
+    const [userId] = decoded.split(':');
+    if (!userId) throw new Error('Invalid token');
+    req.userId = userId;
+    next();
+  } catch {
+    return res.status(401).json({ success: false, message: 'Invalid token' });
+  }
+}
+
+// --- AUTH LOGIN (requires signature since no auth) ---
+app.post('/auth/login', requireSignature, async (req, res) => {
   try {
     const { phoneNumber, password } = req.body;
 
@@ -116,8 +133,8 @@ app.post('/auth/login', async (req, res) => {
   }
 });
 
-// --- GET ALL ACTIVE REWARDS ---
-app.get('/api/rewards', async (req, res) => {
+// --- GET ALL ACTIVE REWARDS (requires signature since no auth) ---
+app.get('/api/rewards', requireSignature, async (req, res) => {
   try {
     const client = new MongoClient(MONGODB_URI);
     await client.connect();
@@ -157,25 +174,36 @@ app.get('/api/rewards', async (req, res) => {
   }
 });
 
-// --- AUTH MIDDLEWARE ---
-function requireAuth(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ success: false, message: 'No authorization token provided' });
-  }
-  const token = authHeader.substring(7);
+// --- GET ALL TENANTS (requires signature since no auth) ---
+app.get('/api/tenants', requireSignature, async (req, res) => {
   try {
-    const decoded = Buffer.from(token, 'base64').toString('utf-8');
-    const [userId] = decoded.split(':');
-    if (!userId) throw new Error('Invalid token');
-    req.userId = userId;
-    next();
-  } catch {
-    return res.status(401).json({ success: false, message: 'Invalid token' });
-  }
-}
+    const client = new MongoClient(MONGODB_URI);
+    await client.connect();
+    console.log('MongoClient connected for /api/tenants');
 
-// --- REDEEM REWARD ---
+    const db = client.db('AWDRewards');
+    const tenants = db.collection('tenants');
+    const tenantsList = await tenants.find({}).toArray();
+
+    await client.close();
+
+    // Defensive: always return an array
+    return res.status(200).json({ 
+      success: true, 
+      tenants: Array.isArray(tenantsList)
+        ? tenantsList.map(t => ({
+            _id: t._id?.toString?.() || '',
+            name: t.name || ''
+          }))
+        : []
+    });
+  } catch (error) {
+    console.error('Tenants fetch error:', error);
+    return res.status(500).json({ success: false, tenants: [], message: 'Internal server error' });
+  }
+});
+
+// --- REDEEM REWARD (requires auth only) ---
 app.post('/api/rewards/redeem', requireAuth, async (req, res) => {
   try {
     const { rewardId } = req.body;
@@ -231,7 +259,7 @@ app.post('/api/rewards/redeem', requireAuth, async (req, res) => {
   }
 });
 
-// --- CHANGE PASSWORD ---
+// --- CHANGE PASSWORD (requires auth only) ---
 app.post('/auth/change-password', requireAuth, async (req, res) => {
   try {
     const { newPassword } = req.body;
@@ -296,7 +324,7 @@ function extractIsoDate(val) {
   }
 }
 
-// --- GET ALL TRANSACTIONS ---
+// --- GET ALL TRANSACTIONS (requires auth only) ---
 app.get('/api/transactions', requireAuth, async (req, res) => {
   try {
     // Use mongoose Transaction model
@@ -318,7 +346,7 @@ app.get('/api/transactions', requireAuth, async (req, res) => {
   }
 });
 
-// --- GET RECENT TRANSACTIONS ---
+// --- GET RECENT TRANSACTIONS (requires auth only) ---
 app.get('/api/transactions/recent', requireAuth, async (req, res) => {
   try {
     // Use mongoose Transaction model
@@ -341,35 +369,6 @@ app.get('/api/transactions/recent', requireAuth, async (req, res) => {
   }
 });
 
-// --- GET ALL TENANTS (for client-side mapping) ---
-app.get('/api/tenants', async (req, res) => {
-  try {
-    const client = new MongoClient(MONGODB_URI);
-    await client.connect();
-    console.log('MongoClient connected for /api/tenants');
-
-    const db = client.db('AWDRewards');
-    const tenants = db.collection('tenants');
-    const tenantsList = await tenants.find({}).toArray();
-
-    await client.close();
-
-    // Defensive: always return an array
-    return res.status(200).json({ 
-      success: true, 
-      tenants: Array.isArray(tenantsList)
-        ? tenantsList.map(t => ({
-            _id: t._id?.toString?.() || '',
-            name: t.name || ''
-          }))
-        : []
-    });
-  } catch (error) {
-    console.error('Tenants fetch error:', error);
-    return res.status(500).json({ success: false, tenants: [], message: 'Internal server error' });
-  }
-});
-
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+app.listen(PORT,'0.0.0.0', () => {
+  console.log(`Server running on http://0.0.0.0:${PORT}`);
 });
