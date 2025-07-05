@@ -5,28 +5,11 @@ const MONGODB_URI = 'mongodb+srv://awdrewards:ADu7kcStcJSq8QGF@awdrewards.g4p1fd
 
 export async function POST(request: Request) {
   // --- Require secret signature header ---
-  const APP_SIGNATURE = process.env.AWD_APP_SIGNATURE || 'REPLACE_WITH_STRONG_SECRET';
+  const APP_SIGNATURE = '2d1e7f8b-4c9a-4e2b-9f3d-8b7e6c5a1d2f$!@';
   const signature = request.headers.get('x-awd-app-signature');
   if (!signature || signature !== APP_SIGNATURE) {
     return new Response(
       JSON.stringify({ success: false, message: 'Forbidden: Invalid app signature' }),
-      {
-        status: 403,
-        headers: { 'Content-Type': 'application/json' }
-      }
-    );
-  }
-
-  // --- Only allow requests from allowed origins ---
-  const ALLOWED_ORIGINS = [
-    'https://awdrewards.app',
-    'capacitor://localhost',
-    'http://localhost:5173'
-  ];
-  const origin = request.headers.get('origin');
-  if (origin && !ALLOWED_ORIGINS.includes(origin)) {
-    return new Response(
-      JSON.stringify({ success: false, message: 'Forbidden: Invalid origin' }),
       {
         status: 403,
         headers: { 'Content-Type': 'application/json' }

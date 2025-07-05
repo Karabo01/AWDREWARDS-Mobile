@@ -2,7 +2,6 @@ const express = require('express');
 const { MongoClient, ObjectId } = require('mongodb');
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
-const cors = require('cors');
 
 const app = express();
 const PORT = 8081;
@@ -10,7 +9,6 @@ const PORT = 8081;
 const MONGODB_URI = 'mongodb+srv://awdrewards:ADu7kcStcJSq8QGF@awdrewards.g4p1fdg.mongodb.net/AWDRewards?retryWrites=true&w=majority';
 
 app.use(express.json());
-app.use(cors());
 
 // Log every incoming HTTP request
 app.use((req, res, next) => {
@@ -19,12 +17,24 @@ app.use((req, res, next) => {
 });
 
 // --- Secret signature middleware ---
-const APP_SIGNATURE = process.env.AWD_APP_SIGNATURE || 'REPLACE_WITH_STRONG_SECRET';
+const APP_SIGNATURE =  '2d1e7f8b-4c9a-4e2b-9f3d-8b7e6c5a1d2f$!@';
+
 
 app.use((req, res, next) => {
   const signature = req.headers['x-awd-app-signature'];
   if (!signature || signature !== APP_SIGNATURE) {
     return res.status(403).json({ success: false, message: 'Forbidden: Invalid app signature' });
+  }
+  next();
+});
+
+// Place this as the first middleware, before any other app.use or routes
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization,x-awd-app-signature');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
   }
   next();
 });

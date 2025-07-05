@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import * as React from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import { User, AuthState } from '@/types/user';
 import { storage } from '@/utils/storage';
 import { API_BASE_URL } from '@/utils/api';
@@ -13,6 +14,9 @@ interface AuthContextType extends AuthState {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Place your app signature here (must match backend)
+const APP_SIGNATURE = '2d1e7f8b-4c9a-4e2b-9f3d-8b7e6c5a1d2f$!@';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authState, setAuthState] = useState<AuthState>({
@@ -73,6 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-awd-app-signature': APP_SIGNATURE,
         },
         body: JSON.stringify({ phoneNumber, password }),
       });
@@ -151,6 +156,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await fetch(`${API_BASE_URL}/auth/profile`, {
         headers: {
           'Authorization': `Bearer ${token}`,
+          'x-awd-app-signature': APP_SIGNATURE,
         },
       });
 

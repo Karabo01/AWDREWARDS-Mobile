@@ -17,23 +17,6 @@ export async function POST(request: Request) {
     );
   }
 
-  // --- Only allow requests from allowed origins ---
-  const ALLOWED_ORIGINS = [
-    'https://awdrewards.app',
-    'capacitor://localhost',
-    'http://localhost:5173'
-  ];
-  const origin = request.headers.get('origin');
-  if (origin && !ALLOWED_ORIGINS.includes(origin)) {
-    return new Response(
-      JSON.stringify({ success: false, message: 'Forbidden: Invalid origin' }),
-      {
-        status: 403,
-        headers: { 'Content-Type': 'application/json' }
-      }
-    );
-  }
-
   try {
     const authHeader = request.headers.get('Authorization');
     const { newPassword } = await request.json();
@@ -94,3 +77,4 @@ export async function POST(request: Request) {
     );
   }
 }
+     
