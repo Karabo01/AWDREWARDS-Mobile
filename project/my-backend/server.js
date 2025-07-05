@@ -18,6 +18,17 @@ app.use((req, res, next) => {
   next();
 });
 
+// --- Secret signature middleware ---
+const APP_SIGNATURE = process.env.AWD_APP_SIGNATURE || 'REPLACE_WITH_STRONG_SECRET';
+
+app.use((req, res, next) => {
+  const signature = req.headers['x-awd-app-signature'];
+  if (!signature || signature !== APP_SIGNATURE) {
+    return res.status(403).json({ success: false, message: 'Forbidden: Invalid app signature' });
+  }
+  next();
+});
+
 // --- Mongoose Transaction Schema ---
 const transactionSchema = new mongoose.Schema(
   {

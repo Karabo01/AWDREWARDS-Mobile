@@ -1,9 +1,39 @@
 import { MongoClient } from 'mongodb';
-import bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcryptjs';
 
 const MONGODB_URI = 'mongodb+srv://awdrewards:ADu7kcStcJSq8QGF@awdrewards.g4p1fdg.mongodb.net/AWDRewards?retryWrites=true&w=majority';
 
 export async function POST(request: Request) {
+  // --- Require secret signature header ---
+  const APP_SIGNATURE = process.env.AWD_APP_SIGNATURE || 'REPLACE_WITH_STRONG_SECRET';
+  const signature = request.headers.get('x-awd-app-signature');
+  if (!signature || signature !== APP_SIGNATURE) {
+    return new Response(
+      JSON.stringify({ success: false, message: 'Forbidden: Invalid app signature' }),
+      {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
+  }
+
+  // --- Only allow requests from allowed origins ---
+  const ALLOWED_ORIGINS = [
+    'https://awdrewards.app',
+    'capacitor://localhost',
+    'http://localhost:5173'
+  ];
+  const origin = request.headers.get('origin');
+  if (origin && !ALLOWED_ORIGINS.includes(origin)) {
+    return new Response(
+      JSON.stringify({ success: false, message: 'Forbidden: Invalid origin' }),
+      {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
+  }
+
   try {
     const { phoneNumber, password } = await request.json();
 
