@@ -31,7 +31,7 @@ app.use((req, res, next) => {
 // Place this as the first middleware, before any other app.use or routes
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization,x-awd-app-signature');
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
@@ -354,13 +354,19 @@ app.get('/api/tenants', async (req, res) => {
 
     await client.close();
 
-    return res.status(200).json({ success: true, tenants: tenantsList.map(t => ({
-      _id: t._id.toString(),
-      name: t.name
-    })) });
+    // Defensive: always return an array
+    return res.status(200).json({ 
+      success: true, 
+      tenants: Array.isArray(tenantsList)
+        ? tenantsList.map(t => ({
+            _id: t._id?.toString?.() || '',
+            name: t.name || ''
+          }))
+        : []
+    });
   } catch (error) {
     console.error('Tenants fetch error:', error);
-    return res.status(500).json({ success: false, message: 'Internal server error' });
+    return res.status(500).json({ success: false, tenants: [], message: 'Internal server error' });
   }
 });
 

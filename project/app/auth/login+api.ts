@@ -5,7 +5,7 @@ const MONGODB_URI = 'mongodb+srv://awdrewards:ADu7kcStcJSq8QGF@awdrewards.g4p1fd
 
 export async function POST(request: Request) {
   // --- Require secret signature header ---
-  const APP_SIGNATURE = '2d1e7f8b-4c9a-4e2b-9f3d-8b7e6c5a1d2f$!@';
+  const APP_SIGNATURE = process.env.AWD_APP_SIGNATURE;
   const signature = request.headers.get('x-awd-app-signature');
   if (!signature || signature !== APP_SIGNATURE) {
     return new Response(
