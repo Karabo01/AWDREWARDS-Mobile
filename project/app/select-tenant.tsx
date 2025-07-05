@@ -3,75 +3,42 @@ import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'expo-router';
-import { API_BASE_URL } from '@/utils/api';
 import { Picker } from '@react-native-picker/picker';
 
-// Add the signature constant (should match your server)
-const APP_SIGNATURE = '2d1e7f8b-4c9a-4e2b-9f3d-8b7e6c5a1d2f$!@';
-
 export default function SelectTenantScreen() {
-  const { user, setSelectedTenantId } = useAuth();
-  const [tenants, setTenants] = useState<{ _id: string; name: string }[]>([]);
+  const { user, setSelectedTenantId, tenants, fetchTenants } = useAuth();
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
-    fetchTenants();
+    if (user) {
+      setLoading(true);
+      fetchTenants().finally(() => setLoading(false));
+    } else {
+      setLoading(false);
+    }
   }, [user]);
 
-  const fetchTenants = async () => {
-    setLoading(true);
-    try {
-      // Get tenantIds from user (can be string or array)
-      let userTenantIds: string[] = [];
-      if (!user) {
-        setTenants([]);
-        setLoading(false);
-        return;
-      }
-      if (Array.isArray(user.tenantId)) {
-        userTenantIds = user.tenantId;
-      } else if (typeof user.tenantId === 'string') {
-        userTenantIds = [user.tenantId];
-      }
-
-      // Fetch all tenants WITH the required signature header
-      const response = await fetch(`${API_BASE_URL}/api/tenants`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-awd-app-signature': APP_SIGNATURE
-        }
-      });
-
-      // Add better error handling
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Tenants fetch error:', response.status, errorText);
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('Tenants response:', data); // Debug log
-      
-      const filtered = (data.tenants || []).filter((t: any) =>
-        userTenantIds.includes(t._id)
-      );
-      
-      setTenants(filtered);
-      if (filtered.length === 1) {
-        setSelected(filtered[0]._id);
-        // Auto-select if only one tenant
-        setSelectedTenantId(filtered[0]._id);
-        router.replace('/(tabs)');
-      }
-    } catch (e) {
-      console.error('Fetch tenants error:', e);
-      setTenants([]);
+  // Filter tenants to only those the user is a member of
+  let userTenantIds: string[] = [];
+  if (user) {
+    if (Array.isArray(user.tenantId)) {
+      userTenantIds = user.tenantId;
+    } else if (typeof user.tenantId === 'string') {
+      userTenantIds = [user.tenantId];
     }
-    setLoading(false);
-  };
+  }
+  const filteredTenants = tenants.filter(t => userTenantIds.includes(t._id));
+
+  useEffect(() => {
+    if (filteredTenants.length === 1) {
+      setSelected(filteredTenants[0]._id);
+      setSelectedTenantId(filteredTenants[0]._id);
+      router.replace('/(tabs)');
+    }
+  }, [filteredTenants.length]);
 
   const handleSelect = (tenantId: string) => {
     setSelectedTenantId(tenantId);
@@ -81,7 +48,10 @@ export default function SelectTenantScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <ActivityIndicator size="large" color="#2563EB" />
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color="#2563EB" />
+          <Text style={styles.loadingText}>Loading locations...</Text>
+        </View>
       </SafeAreaView>
     );
   }
@@ -89,7 +59,22 @@ export default function SelectTenantScreen() {
   if (!user) {
     return (
       <SafeAreaView style={styles.container}>
-        <Text style={{ textAlign: 'center', marginTop: 40 }}>No user found.</Text>
+        <View style={styles.centerContainer}>
+          <Text style={styles.errorText}>No user found.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centerContainer}>
+          <Text style={styles.errorText}>Error: {error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={fetchTenants}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
@@ -100,7 +85,7 @@ export default function SelectTenantScreen() {
         <Text style={styles.title}>Select Your Location</Text>
         <Text style={styles.subtitle}>Choose the business location to view your points and rewards</Text>
       </View>
-      {tenants.length > 1 ? (
+      {filteredTenants.length > 1 ? (
         <View style={styles.pickerContainer}>
           <Picker
             selectedValue={selected}
@@ -108,7 +93,7 @@ export default function SelectTenantScreen() {
             style={styles.picker}
           >
             <Picker.Item label="Select a location..." value={null} />
-            {tenants.map((tenant) => (
+            {filteredTenants.map((tenant) => (
               <Picker.Item key={tenant._id} label={tenant.name} value={tenant._id} />
             ))}
           </Picker>
@@ -120,8 +105,10 @@ export default function SelectTenantScreen() {
             <Text style={styles.tenantButtonText}>Continue</Text>
           </TouchableOpacity>
         </View>
-      ) : tenants.length === 1 ? null : (
-        <Text style={{ textAlign: 'center', marginTop: 40 }}>No locations available for your account.</Text>
+      ) : filteredTenants.length === 1 ? null : (
+        <View style={styles.centerContainer}>
+          <Text style={styles.noTenantsText}>No locations available for your account.</Text>
+        </View>
       )}
     </SafeAreaView>
   );
@@ -129,6 +116,7 @@ export default function SelectTenantScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
   header: { alignItems: 'center', marginTop: 48, marginBottom: 24, paddingHorizontal: 24 },
   title: { fontSize: 24, fontWeight: 'bold', color: '#111827', marginBottom: 8 },
   subtitle: { fontSize: 16, color: '#6B7280', textAlign: 'center' },
@@ -144,5 +132,32 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#EF4444',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  noTenantsText: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  retryButton: {
+    backgroundColor: '#2563EB',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });

@@ -11,6 +11,8 @@ interface AuthContextType extends AuthState {
   refreshUser: () => Promise<void>;
   selectedTenantId: string | null;
   setSelectedTenantId: (tenantId: string | null) => void;
+  tenants: { _id: string; name: string }[];
+  fetchTenants: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,6 +27,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoading: true,
   });
   const [selectedTenantId, setSelectedTenantIdState] = useState<string | null>(null);
+  const [tenants, setTenants] = useState<{ _id: string; name: string }[]>([]);
 
   useEffect(() => {
     checkAuthState();
@@ -171,6 +174,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const fetchTenants = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/tenants`, {
+        headers: {
+          'x-awd-app-signature': APP_SIGNATURE,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setTenants(Array.isArray(data.tenants) ? data.tenants : []);
+      } else {
+        setTenants([]);
+      }
+    } catch (error) {
+      setTenants([]);
+    }
+  };
+
+  // Fetch tenants after login
+  useEffect(() => {
+    if (authState.isAuthenticated) {
+      fetchTenants();
+    }
+  }, [authState.isAuthenticated]);
+
   const setSelectedTenantId = (tenantId: string | null) => {
     setSelectedTenantIdState(tenantId);
     if (tenantId) {
@@ -188,6 +216,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       refreshUser,
       selectedTenantId,
       setSelectedTenantId,
+      tenants,
+      fetchTenants,
     }}>
       {children}
     </AuthContext.Provider>

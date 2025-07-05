@@ -187,21 +187,16 @@ app.get('/api/tenants', requireSignature, async (req, res) => {
 
     await client.close();
 
-    // Defensive: always return an array
-    return res.status(200).json({ 
-      success: true, 
-      tenants: Array.isArray(tenantsList)
-        ? tenantsList.map(t => ({
-            _id: t._id?.toString?.() || '',
-            name: t.name || ''
-          }))
-        : []
-    });
+      return res.status(200).json({ success: true, tenants: tenantsList.map(t => ({
+      _id: t._id.toString(),
+      name: t.name
+    })) });
   } catch (error) {
     console.error('Tenants fetch error:', error);
-    return res.status(500).json({ success: false, tenants: [], message: 'Internal server error' });
+    return res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
+
 
 // --- REDEEM REWARD (requires auth only) ---
 app.post('/api/rewards/redeem', requireAuth, async (req, res) => {

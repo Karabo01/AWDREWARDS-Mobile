@@ -25,7 +25,7 @@ import QRCode from 'react-native-qrcode-svg';
 // (Removed duplicate User type declaration)
 
 export default function HomeScreen() {
-  const { user, refreshUser, logout, selectedTenantId } = useAuth();
+  const { user, refreshUser, logout, selectedTenantId, tenants } = useAuth();
   const router = useRouter();
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
@@ -243,6 +243,9 @@ export default function HomeScreen() {
   // Optionally, sort userTenantIds by tenant name or other criteria
   userTenantIds.sort((a, b) => (tenantsMap[a] || '').localeCompare(tenantsMap[b] || ''));
 
+  // Get the selected tenant name from context
+  const selectedTenant = tenants.find(t => t._id === selectedTenantId);
+
   return (
     <SafeAreaView style={styles.container}>
       {renderQRCodeModal()}
@@ -256,14 +259,16 @@ export default function HomeScreen() {
           <Text style={styles.greeting}>
             Hello, {user?.name || user?.email || 'Guest'}!
           </Text>
-          <Text style={styles.subtitle}>Welcome back to AWDRewards</Text>
+          <Text style={styles.subtitle}>
+            {selectedTenant ? `Welcome to ${selectedTenant.name}` : 'Welcome back to AWDRewards'}
+          </Text>
         </View>
 
         {/* Show points for selected tenant */}
         <View style={styles.statsContainer}>
           <View style={styles.currentPointsCard}>
             <Text style={styles.currentPointsLabel}>
-              {tenantsMap[selectedTenantId] || 'Unknown Business'}
+               {selectedTenant ? ` ${selectedTenant.name}` : 'Welcome back to AWDRewards'}
             </Text>
             <Text style={styles.currentPointsValue}>
               {typeof points === 'number' ? points.toLocaleString() : '0'}

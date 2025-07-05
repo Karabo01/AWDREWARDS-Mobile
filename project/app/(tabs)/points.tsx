@@ -18,11 +18,12 @@ import { API_BASE_URL } from '@/utils/api';
 import { ScrollView as RNScrollView } from 'react-native';
 
 export default function PointsScreen() {
-  const { user, refreshUser, selectedTenantId } = useAuth();
+  const { user, refreshUser, logout, selectedTenantId, tenants } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'earned' | 'redeemed'>('all');
   const [tenantsMap, setTenantsMap] = useState<{ [key: string]: string }>({});
+
 
   useEffect(() => {
     if (user) {
@@ -88,7 +89,7 @@ export default function PointsScreen() {
 
   // Only show transactions for selected tenant
   const selectedTenantTransactions = transactions.filter(tx => tx.tenantId === selectedTenantId);
-
+  const selectedTenant = tenants.find(t => t._id === selectedTenantId);
   const getTransactionTypeFromString = (type: string) => {
     switch (type) {
       case 'REWARD_REDEEMED':
@@ -156,14 +157,14 @@ export default function PointsScreen() {
         <View style={styles.header}>
           <Text style={styles.title}>Points Overview</Text>
           <Text style={styles.subtitle}>
-            {tenantsMap[selectedTenantId] || 'Unknown Business'}
+             {selectedTenant ? ` ${selectedTenant.name}` : 'Welcome back to AWDRewards'}
           </Text>
         </View>
 
         <View style={styles.statsContainer}>
           <View style={styles.currentPointsCard}>
             <Text style={styles.currentPointsLabel}>
-              {tenantsMap[selectedTenantId] || 'Unknown Business'}
+               {selectedTenant ? ` ${selectedTenant.name}` : 'Welcome back to AWDRewards'}
             </Text>
             <Text style={styles.currentPointsValue}>
               {typeof (selectedTenantTransactions[0]?.balance) === 'number'
