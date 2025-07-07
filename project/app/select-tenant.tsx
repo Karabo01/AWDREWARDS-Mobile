@@ -32,13 +32,12 @@ export default function SelectTenantScreen() {
   }
   const filteredTenants = tenants.filter(t => userTenantIds.includes(t._id));
 
+  // Auto-select the tenant if there's only one
   useEffect(() => {
-    if (filteredTenants.length === 1) {
+    if (filteredTenants.length === 1 && !selected) {
       setSelected(filteredTenants[0]._id);
-      setSelectedTenantId(filteredTenants[0]._id);
-      router.replace('/(tabs)');
     }
-  }, [filteredTenants.length]);
+  }, [filteredTenants.length, selected]);
 
   const handleSelect = (tenantId: string) => {
     setSelectedTenantId(tenantId);
@@ -79,37 +78,41 @@ export default function SelectTenantScreen() {
     );
   }
 
+  if (filteredTenants.length === 0) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centerContainer}>
+          <Text style={styles.noTenantsText}>No locations available for your account.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Select Your Location</Text>
         <Text style={styles.subtitle}>Choose the business location to view your points and rewards</Text>
       </View>
-      {filteredTenants.length > 1 ? (
-        <View style={styles.pickerContainer}>
-          <Picker
-            selectedValue={selected}
-            onValueChange={(itemValue) => setSelected(itemValue)}
-            style={styles.picker}
-          >
-            <Picker.Item label="Select a location..." value={null} />
-            {filteredTenants.map((tenant) => (
-              <Picker.Item key={tenant._id} label={tenant.name} value={tenant._id} />
-            ))}
-          </Picker>
-          <TouchableOpacity
-            style={[styles.tenantButton, !selected && { opacity: 0.5 }]}
-            onPress={() => selected && handleSelect(selected)}
-            disabled={!selected}
-          >
-            <Text style={styles.tenantButtonText}>Continue</Text>
-          </TouchableOpacity>
-        </View>
-      ) : filteredTenants.length === 1 ? null : (
-        <View style={styles.centerContainer}>
-          <Text style={styles.noTenantsText}>No locations available for your account.</Text>
-        </View>
-      )}
+      <View style={styles.pickerContainer}>
+        <Picker
+          selectedValue={selected}
+          onValueChange={(itemValue) => setSelected(itemValue)}
+          style={styles.picker}
+        >
+          <Picker.Item label="Select a location..." value={null} />
+          {filteredTenants.map((tenant) => (
+            <Picker.Item key={tenant._id} label={tenant.name} value={tenant._id} />
+          ))}
+        </Picker>
+        <TouchableOpacity
+          style={[styles.tenantButton, !selected && { opacity: 0.5 }]}
+          onPress={() => selected && handleSelect(selected)}
+          disabled={!selected}
+        >
+          <Text style={styles.tenantButtonText}>Continue</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
