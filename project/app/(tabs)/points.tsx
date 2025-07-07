@@ -36,12 +36,12 @@ export default function PointsScreen() {
       await fetchTransactions();
     });
     // Listen for global refresh event
-    const sub2 = DeviceEventEmitter.addListener('refreshAllTabs', async () => {
-      await handleRefresh();
-    });
+    // const sub2 = DeviceEventEmitter.addListener('refreshAllTabs', async () => {
+    //   await handleRefresh();
+    // });
     return () => {
       sub1.remove();
-      sub2.remove();
+      // sub2.remove();
     };
   }, [user]);
 
@@ -247,7 +247,7 @@ export default function PointsScreen() {
                         {transaction.description}
                       </Text>
                       <Text style={styles.transactionBusiness}>
-                        {tenantsMap[transaction.tenantId] || 'Unknown Business'}
+                        {selectedTenant ? ` ${selectedTenant.name}` : 'AWDRewards'}
                       </Text>
                       <Text style={styles.transactionBalance}>
                         Balance: {transaction.balance.toLocaleString()} points

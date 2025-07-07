@@ -42,10 +42,10 @@ export default function HomeScreen() {
       fetchTenants();
     }
     // Listen for global refresh event
-    const sub = DeviceEventEmitter.addListener('refreshAllTabs', async () => {
-      await handleRefresh();
-    });
-    return () => sub.remove();
+    // const sub = DeviceEventEmitter.addListener('refreshAllTabs', async () => {
+    //   await handleRefresh();
+    // });
+    // return () => sub.remove();
   }, [user]);
 
   const fetchRecentTransactions = async () => {

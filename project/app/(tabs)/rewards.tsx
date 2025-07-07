@@ -32,18 +32,34 @@ export default function RewardsScreen() {
     fetchRewards();
     fetchTransactions();
     // Listen for global refresh event
-    const sub = DeviceEventEmitter.addListener('refreshAllTabs', async () => {
-      await handleRefresh();
-    });
-    return () => sub.remove();
+    // const sub = DeviceEventEmitter.addListener('refreshAllTabs', async () => {
+    //   await handleRefresh();
+    // });
+    // return () => sub.remove();
   }, []);
 
   const fetchRewards = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/rewards`);
+      console.log('Fetching rewards from:', `${API_BASE_URL}/api/rewards`);
+      const token = await storage.getItem('authToken');
+      const response = await fetch(`${API_BASE_URL}/api/rewards`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-awd-app-signature': '2d1e7f8b-4c9a-4e2b-9f3d-8b7e6c5a1d2f$!@', // Replace with your actual signature
+        },
+      });
+      console.log('Rewards response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
-        setRewards(data.rewards);
+        console.log('Rewards API response:', data);
+        console.log('Rewards array:', data.rewards);
+        setRewards(data.rewards || []);
+        console.log('Fetched rewards:', data.rewards?.length || 0);
+      } else {
+        console.error('Rewards API error:', response.status, response.statusText);
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
       }
     } catch (error) {
       console.error('Failed to fetch rewards:', error);
@@ -61,27 +77,37 @@ export default function RewardsScreen() {
       if (response.ok) {
         const data = await response.json();
         setTransactions(data.transactions);
+        console.log('Fetched transactions:', data.transactions.length);
       }
     } catch (error) {
-      // fail silently
+      console.error('Failed to fetch transactions:', error);
     }
   };
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await refreshUser();
-    await fetchRewards();
-    await fetchTransactions(); // fetch transactions as well
-    setIsRefreshing(false);
+    try {
+      await Promise.all([
+        refreshUser(),
+        fetchRewards(),
+        fetchTransactions()
+      ]);
+    } catch (error) {
+      console.error('Refresh failed:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const handleRedeemReward = async (reward: Reward) => {
     if (!user) return;
 
-    if (user.points < reward.pointsRequired) {
+    const currentPoints = getUserPointsForTenant();
+    
+    if (currentPoints < reward.pointsRequired) {
       Alert.alert(
         'Insufficient Points',
-        `You need ${reward.pointsRequired - user.points} more points to redeem this reward.`,
+        `You need ${reward.pointsRequired - currentPoints} more points to redeem this reward.`,
         [{ text: 'OK' }]
       );
       return;
@@ -114,7 +140,7 @@ export default function RewardsScreen() {
           [{ text: 'OK' }]
         );
         await refreshUser();
-        await fetchRewards(); // <-- Add this line to refresh rewards after redemption
+        await fetchRewards();
         // Notify points tab to refresh transactions
         DeviceEventEmitter.emit('refreshPointsTab');
       } else {
@@ -126,29 +152,43 @@ export default function RewardsScreen() {
     }
   };
 
-  const canAfford = (pointsRequired: number) => {
-    return user ? user.points >= pointsRequired : false;
+  // Get user's current points for selected tenant
+  const getUserPointsForTenant = () => {
+    if (!user || !selectedTenantId) return 0;
+    
+    // Calculate from transactions for the selected tenant
+    const tenantTransactions = transactions
+      .filter(tx => tx.tenantId === selectedTenantId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    
+    return tenantTransactions.length > 0 ? tenantTransactions[0].balance : 0;
   };
 
-  // Get user's current points for selected tenant
-  const tenantTransactions = transactions
-    .filter(tx => tx.tenantId === selectedTenantId)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  const currentPoints = tenantTransactions.length > 0
-    ? tenantTransactions[0].balance
-    : 0;
+  const currentPoints = getUserPointsForTenant();
 
   // Only show rewards for selected tenant
   const tenantRewards = rewards.filter(r => r.tenantId === selectedTenantId);
 
-  // Only show rewards user qualifies for (in selected tenant)
+  // Show rewards that user qualifies for (in selected tenant)
   const qualifiedRewards = tenantRewards.filter(
     reward => currentPoints >= reward.pointsRequired
   );
 
+  // // Debug logging
+  // console.log('Debug Info:', {
+  //   selectedTenantId,
+  //   currentPoints,
+  //   totalRewards: rewards.length,
+  //   tenantRewards: tenantRewards.length,
+  //   qualifiedRewards: qualifiedRewards.length,
+  //   userPoints: user?.points,
+  //   transactionsCount: transactions.length,
+  //   tenantTransactionsCount: transactions.filter(tx => tx.tenantId === selectedTenantId).length
+  // });
+
   // QR code data for redemption
   const qrData = user && qrReward ? JSON.stringify({
-    name: user.name, // changed from userId to name
+    name: user.name,
     rewardId: qrReward._id,
     tenantId: qrReward.tenantId,
     action: 'REDEEM_REWARD'
@@ -220,6 +260,14 @@ export default function RewardsScreen() {
               {typeof currentPoints === 'number' ? currentPoints.toLocaleString() : '0'} points available
             </Text>
           </View>
+          {/* Debug info - remove in production
+          {__DEV__ && (
+            <View style={styles.debugInfo}>
+              <Text style={styles.debugText}>
+                Debug: {tenantRewards.length} tenant rewards, {qualifiedRewards.length} qualified
+              </Text>
+            </View>
+          )} */}
         </View>
 
         <View style={styles.rewardsContainer}>
@@ -255,7 +303,10 @@ export default function RewardsScreen() {
               <Gift size={48} color="#D1D5DB" />
               <Text style={styles.emptyStateTitle}>No Rewards Available</Text>
               <Text style={styles.emptyStateText}>
-                You do not currently qualify for any rewards.
+                {tenantRewards.length === 0 
+                  ? "No rewards available for this business."
+                  : "You do not currently qualify for any rewards. Keep earning points!"
+                }
               </Text>
             </View>
           )}
@@ -307,6 +358,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#92400E',
     marginLeft: 6,
+  },
+  debugInfo: {
+    backgroundColor: '#EEF2FF',
+    padding: 8,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  debugText: {
+    fontSize: 12,
+    color: '#4F46E5',
   },
   rewardsContainer: {
     paddingHorizontal: 24,
