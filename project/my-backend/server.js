@@ -1,12 +1,19 @@
+require('dotenv').config();
+
 const express = require('express');
 const { MongoClient, ObjectId } = require('mongodb');
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
 
 const app = express();
-const PORT = 8081;
+const PORT = process.env.PORT || 8081;
 
-const MONGODB_URI = 'mongodb+srv://awdrewards:ADu7kcStcJSq8QGF@awdrewards.g4p1fdg.mongodb.net/AWDRewards?retryWrites=true&w=majority';
+const MONGODB_URI = process.env.MONGODB_URI;
+
+if (!MONGODB_URI) {
+  console.error('MONGODB_URI environment variable is required');
+  process.exit(1);
+}
 
 app.use(express.json());
 
@@ -28,7 +35,12 @@ app.use((req, res, next) => {
 });
 
 // --- Secret signature middleware (only for non-auth endpoints) ---
-const APP_SIGNATURE = '2d1e7f8b-4c9a-4e2b-9f3d-8b7e6c5a1d2f$!@';
+const APP_SIGNATURE = process.env.APP_SIGNATURE;
+
+if (!APP_SIGNATURE) {
+  console.error('APP_SIGNATURE environment variable is required');
+  process.exit(1);
+}
 
 function requireSignature(req, res, next) {
   const signature = req.headers['x-awd-app-signature'];
