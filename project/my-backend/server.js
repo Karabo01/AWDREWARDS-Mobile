@@ -1,15 +1,12 @@
 require('dotenv').config();
 
 const express = require('express');
-const https = require('https');
-const fs = require('fs');
 const { MongoClient, ObjectId } = require('mongodb');
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
 
 const app = express();
 const PORT = process.env.PORT || 8081;
-const HTTPS_PORT = process.env.HTTPS_PORT || 443;
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
@@ -212,6 +209,7 @@ app.get('/api/tenants', requireSignature, async (req, res) => {
   }
 });
 
+
 // --- REDEEM REWARD (requires auth only) ---
 app.post('/api/rewards/redeem', requireAuth, async (req, res) => {
   try {
@@ -378,27 +376,6 @@ app.get('/api/transactions/recent', requireAuth, async (req, res) => {
   }
 });
 
-// HTTPS Server setup
-const httpsOptions = {
-  key: fs.readFileSync(process.env.SSL_KEY_PATH || '/etc/ssl/private/server.key'),
-  cert: fs.readFileSync(process.env.SSL_CERT_PATH || '/etc/ssl/certs/server.crt')
-};
-
-// Start HTTPS server
-https.createServer(httpsOptions, app).listen(HTTPS_PORT, '0.0.0.0', () => {
-  console.log(`HTTPS Server running on https://0.0.0.0:${HTTPS_PORT}`);
-});
-
-// Optional: Redirect HTTP to HTTPS
-app.use((req, res, next) => {
-  if (req.header('x-forwarded-proto') !== 'https') {
-    res.redirect(`https://${req.header('host')}${req.url}`);
-  } else {
-    next();
-  }
-});
-
-// HTTP server for redirects
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`HTTP Server running on http://0.0.0.0:${PORT} (redirecting to HTTPS)`);
+app.listen(PORT,'0.0.0.0', () => {
+  console.log(`Server running on http://0.0.0.0:${PORT}`);
 });
